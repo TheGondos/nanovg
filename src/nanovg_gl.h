@@ -32,6 +32,8 @@ enum NVGcreateFlags {
 	NVG_STENCIL_STROKES	= 1<<1,
 	// Flag indicating that additional debug checks are done.
 	NVG_DEBUG 			= 1<<2,
+	// Flag indicating if the output should be Y flipped
+	NVG_YFLIP 			= 1<<3,
 };
 
 #if defined NANOVG_GL2_IMPLEMENTATION
@@ -117,6 +119,7 @@ enum GLNVGuniformLoc {
 	GLNVG_LOC_VIEWSIZE,
 	GLNVG_LOC_TEX,
 	GLNVG_LOC_FRAG,
+	GLNVG_LOC_YFLIP,
 	GLNVG_MAX_LOCS
 };
 
@@ -494,6 +497,7 @@ static void glnvg__getUniforms(GLNVGshader* shader)
 {
 	shader->loc[GLNVG_LOC_VIEWSIZE] = glGetUniformLocation(shader->prog, "viewSize");
 	shader->loc[GLNVG_LOC_TEX] = glGetUniformLocation(shader->prog, "tex");
+	shader->loc[GLNVG_LOC_YFLIP] = glGetUniformLocation(shader->prog, "yflip");
 
 #if NANOVG_GL_USE_UNIFORMBUFFER
 	shader->loc[GLNVG_LOC_FRAG] = glGetUniformBlockIndex(shader->prog, "frag");
@@ -535,12 +539,14 @@ static int glnvg__renderCreate(void* uptr)
 	static const char* fillVertShader =
 		"#ifdef NANOVG_GL3\n"
 		"	uniform vec2 viewSize;\n"
+		"	uniform bool yflip;\n"
 		"	in vec2 vertex;\n"
 		"	in vec2 tcoord;\n"
 		"	out vec2 ftcoord;\n"
 		"	out vec2 fpos;\n"
 		"#else\n"
 		"	uniform vec2 viewSize;\n"
+		"	uniform bool yflip;\n"
 		"	attribute vec2 vertex;\n"
 		"	attribute vec2 tcoord;\n"
 		"	varying vec2 ftcoord;\n"
@@ -549,7 +555,10 @@ static int glnvg__renderCreate(void* uptr)
 		"void main(void) {\n"
 		"	ftcoord = tcoord;\n"
 		"	fpos = vertex;\n"
-		"	gl_Position = vec4(2.0*vertex.x/viewSize.x - 1.0, 1.0 - 2.0*vertex.y/viewSize.y, 0, 1);\n"
+		"	if(yflip)\n"
+		"	  gl_Position = vec4(2.0*vertex.x/viewSize.x - 1.0, 2.0*vertex.y/viewSize.y - 1.0, 0, 1);\n"
+		"	else\n"
+		"	  gl_Position = vec4(2.0*vertex.x/viewSize.x - 1.0, 1.0 - 2.0*vertex.y/viewSize.y, 0, 1);\n"
 		"}\n";
 
 	static const char* fillFragShader =
@@ -1188,7 +1197,10 @@ static void glnvg__renderFlush(void* uptr)
 
 		glEnable(GL_CULL_FACE);
 		glCullFace(GL_BACK);
-		glFrontFace(GL_CCW);
+		if(gl->flags & NVG_YFLIP)
+			glFrontFace(GL_CW);
+		else
+			glFrontFace(GL_CCW);
 		glEnable(GL_BLEND);
 		glDisable(GL_DEPTH_TEST);
 		glDisable(GL_SCISSOR_TEST);
@@ -1230,6 +1242,7 @@ static void glnvg__renderFlush(void* uptr)
 		// Set view and texture just once per frame.
 		glUniform1i(gl->shader.loc[GLNVG_LOC_TEX], 0);
 		glUniform2fv(gl->shader.loc[GLNVG_LOC_VIEWSIZE], 1, gl->view);
+		glUniform1f(gl->shader.loc[GLNVG_LOC_YFLIP], gl->flags & NVG_YFLIP ? 1.0 : 0.0);
 
 #if NANOVG_GL_USE_UNIFORMBUFFER
 		glBindBuffer(GL_UNIFORM_BUFFER, gl->fragBuf);
