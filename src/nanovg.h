@@ -260,6 +260,9 @@ void nvgMiterLimit(NVGcontext* ctx, float limit);
 // Sets the stroke width of the stroke style.
 void nvgStrokeWidth(NVGcontext* ctx, float size);
 
+// Sets the stroke dash
+void nvgStrokeDash(NVGcontext* ctx, int dash);
+
 // Sets how the end of the line (cap) is drawn,
 // Can be one of: NVG_BUTT (default), NVG_ROUND, NVG_SQUARE.
 void nvgLineCap(NVGcontext* ctx, int cap);
@@ -639,7 +642,7 @@ struct NVGscissor {
 typedef struct NVGscissor NVGscissor;
 
 struct NVGvertex {
-	float x,y,u,v;
+	float x,y,dist,u,v;
 };
 typedef struct NVGvertex NVGvertex;
 

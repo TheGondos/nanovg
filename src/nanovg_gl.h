@@ -540,21 +540,24 @@ static int glnvg__renderCreate(void* uptr)
 		"#ifdef NANOVG_GL3\n"
 		"	uniform vec2 viewSize;\n"
 		"	uniform bool yflip;\n"
-		"	in vec2 vertex;\n"
+		"	in vec3 vertex;\n"
 		"	in vec2 tcoord;\n"
 		"	out vec2 ftcoord;\n"
 		"	out vec2 fpos;\n"
+		"	out float dist;\n"
 		"#else\n"
 		"	uniform vec2 viewSize;\n"
 		"	uniform bool yflip;\n"
-		"	attribute vec2 vertex;\n"
+		"	attribute vec3 vertex;\n"
 		"	attribute vec2 tcoord;\n"
 		"	varying vec2 ftcoord;\n"
 		"	varying vec2 fpos;\n"
+		"	varying float dist;\n"
 		"#endif\n"
 		"void main(void) {\n"
 		"	ftcoord = tcoord;\n"
-		"	fpos = vertex;\n"
+		"	fpos = vertex.xy;\n"
+		"	dist = vertex.z;\n"
 		"	if(yflip)\n"
 		"	  gl_Position = vec4(2.0*vertex.x/viewSize.x - 1.0, 2.0*vertex.y/viewSize.y - 1.0, 0, 1);\n"
 		"	else\n"
@@ -592,12 +595,14 @@ static int glnvg__renderCreate(void* uptr)
 		"	uniform sampler2D tex;\n"
 		"	in vec2 ftcoord;\n"
 		"	in vec2 fpos;\n"
+		"	in float dist;\n"
 		"	out vec4 outColor;\n"
 		"#else\n" // !NANOVG_GL3
 		"	uniform vec4 frag[UNIFORMARRAY_SIZE];\n"
 		"	uniform sampler2D tex;\n"
 		"	varying vec2 ftcoord;\n"
 		"	varying vec2 fpos;\n"
+		"	varying float dist;\n"
 		"#endif\n"
 		"#ifndef USE_UNIFORMBUFFER\n"
 		"	#define scissorMat mat3(frag[0].xyz, frag[1].xyz, frag[2].xyz)\n"
@@ -635,6 +640,7 @@ static int glnvg__renderCreate(void* uptr)
 		"#endif\n"
 		"\n"
 		"void main(void) {\n"
+		"   if(fract(dist)>0.5) discard;"
 		"   vec4 result;\n"
 		"	float scissor = scissorMask(fpos);\n"
 		"#ifdef EDGE_AA\n"
@@ -1236,8 +1242,8 @@ static void glnvg__renderFlush(void* uptr)
 		glBufferData(GL_ARRAY_BUFFER, gl->nverts * sizeof(NVGvertex), gl->verts, GL_STREAM_DRAW);
 		glEnableVertexAttribArray(0);
 		glEnableVertexAttribArray(1);
-		glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(NVGvertex), (const GLvoid*)(size_t)0);
-		glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(NVGvertex), (const GLvoid*)(0 + 2*sizeof(float)));
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(NVGvertex), (const GLvoid*)(size_t)0);
+		glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(NVGvertex), (const GLvoid*)(0 + 3*sizeof(float)));
 
 		// Set view and texture just once per frame.
 		glUniform1i(gl->shader.loc[GLNVG_LOC_TEX], 0);

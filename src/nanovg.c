@@ -86,6 +86,7 @@ struct NVGstate {
 	float fontBlur;
 	int textAlign;
 	int fontId;
+	int dashed;
 };
 typedef struct NVGstate NVGstate;
 
@@ -666,6 +667,7 @@ void nvgReset(NVGcontext* ctx)
 	state->fontBlur = 0.0f;
 	state->textAlign = NVG_ALIGN_LEFT | NVG_ALIGN_BASELINE;
 	state->fontId = 0;
+	state->dashed = 0;
 }
 
 // State setting
@@ -679,6 +681,12 @@ void nvgStrokeWidth(NVGcontext* ctx, float width)
 {
 	NVGstate* state = nvg__getState(ctx);
 	state->strokeWidth = width;
+}
+
+void nvgStrokeDash(NVGcontext* ctx, int dash)
+{
+	NVGstate* state = nvg__getState(ctx);
+	state->dashed = dash;
 }
 
 void nvgMiterLimit(NVGcontext* ctx, float limit)
@@ -1272,12 +1280,22 @@ static void nvg__polyReverse(NVGpoint* pts, int npts)
 }
 
 
+static void nvg__vset_dashed(NVGvertex* vtx, float x, float y, float u, float v, float dist)
+{
+	vtx->x = x;
+	vtx->y = y;
+	vtx->u = u;
+	vtx->v = v;
+	vtx->dist = dist;
+}
+
 static void nvg__vset(NVGvertex* vtx, float x, float y, float u, float v)
 {
 	vtx->x = x;
 	vtx->y = y;
 	vtx->u = u;
 	vtx->v = v;
+	vtx->dist = 0;
 }
 
 static void nvg__tesselateBezier(NVGcontext* ctx,
@@ -1595,16 +1613,16 @@ static NVGvertex* nvg__buttCapStart(NVGvertex* dst, NVGpoint* p,
 
 static NVGvertex* nvg__buttCapEnd(NVGvertex* dst, NVGpoint* p,
 								  float dx, float dy, float w, float d,
-								  float aa, float u0, float u1)
+								  float aa, float u0, float u1, float dist)
 {
 	float px = p->x + dx*d;
 	float py = p->y + dy*d;
 	float dlx = dy;
 	float dly = -dx;
-	nvg__vset(dst, px + dlx*w, py + dly*w, u0,1); dst++;
-	nvg__vset(dst, px - dlx*w, py - dly*w, u1,1); dst++;
-	nvg__vset(dst, px + dlx*w + dx*aa, py + dly*w + dy*aa, u0,0); dst++;
-	nvg__vset(dst, px - dlx*w + dx*aa, py - dly*w + dy*aa, u1,0); dst++;
+	nvg__vset_dashed(dst, px + dlx*w, py + dly*w, u0, 1, dist); dst++;
+	nvg__vset_dashed(dst, px - dlx*w, py - dly*w, u1, 1, dist); dst++;
+	nvg__vset_dashed(dst, px + dlx*w + dx*aa, py + dly*w + dy*aa, u0, 0, dist); dst++;
+	nvg__vset_dashed(dst, px - dlx*w + dx*aa, py - dly*w + dy*aa, u1, 0, dist); dst++;
 	return dst;
 }
 
@@ -1725,6 +1743,7 @@ static void nvg__calculateJoins(NVGcontext* ctx, float w, int lineJoin, float mi
 static int nvg__expandStroke(NVGcontext* ctx, float w, float fringe, int lineCap, int lineJoin, float miterLimit)
 {
 	NVGpathCache* cache = ctx->cache;
+	NVGstate* state = nvg__getState(ctx);
 	NVGvertex* verts;
 	NVGvertex* dst;
 	int cverts, i, j;
@@ -1807,6 +1826,7 @@ static int nvg__expandStroke(NVGcontext* ctx, float w, float fringe, int lineCap
 				dst = nvg__roundCapStart(dst, p0, dx, dy, w, ncap, aa, u0, u1);
 		}
 
+		float dist = 0.0;
 		for (j = s; j < e; ++j) {
 			if ((p1->flags & (NVG_PT_BEVEL | NVG_PR_INNERBEVEL)) != 0) {
 				if (lineJoin == NVG_ROUND) {
@@ -1815,25 +1835,42 @@ static int nvg__expandStroke(NVGcontext* ctx, float w, float fringe, int lineCap
 					dst = nvg__bevelJoin(dst, p0, p1, w, w, u0, u1, aa);
 				}
 			} else {
-				nvg__vset(dst, p1->x + (p1->dmx * w), p1->y + (p1->dmy * w), u0,1); dst++;
-				nvg__vset(dst, p1->x - (p1->dmx * w), p1->y - (p1->dmy * w), u1,1); dst++;
+				if(state->dashed) {
+					dx = p1->x - p0->x;
+					dy = p1->y - p0->y;
+					dist += nvg__sqrtf(dx*dx + dy*dy) / 10.0;
+				}
+
+				nvg__vset_dashed(dst, p1->x + (p1->dmx * w), p1->y + (p1->dmy * w), u0,1, dist); dst++;
+				nvg__vset_dashed(dst, p1->x - (p1->dmx * w), p1->y - (p1->dmy * w), u1,1, dist); dst++;
 			}
 			p0 = p1++;
 		}
 
 		if (loop) {
+			if(path->count>0 && state->dashed) {
+				p0 = &pts[path->count-1];
+				p1 = &pts[0];
+
+				dx = p1->x - p0->x;
+				dy = p1->y - p0->y;
+				dist += nvg__sqrtf(dx*dx + dy*dy) / 10.0;
+			}
+
 			// Loop it
-			nvg__vset(dst, verts[0].x, verts[0].y, u0,1); dst++;
-			nvg__vset(dst, verts[1].x, verts[1].y, u1,1); dst++;
+			nvg__vset_dashed(dst, verts[0].x, verts[0].y, u0,1, dist); dst++;
+			nvg__vset_dashed(dst, verts[1].x, verts[1].y, u1,1, dist); dst++;
 		} else {
 			// Add cap
 			dx = p1->x - p0->x;
 			dy = p1->y - p0->y;
+			if(state->dashed)
+				dist += nvg__sqrtf(dx*dx + dy*dy) / 10.0;
 			nvg__normalize(&dx, &dy);
 			if (lineCap == NVG_BUTT)
-				dst = nvg__buttCapEnd(dst, p1, dx, dy, w, -aa*0.5f, aa, u0, u1);
+				dst = nvg__buttCapEnd(dst, p1, dx, dy, w, -aa*0.5f, aa, u0, u1, dist);
 			else if (lineCap == NVG_BUTT || lineCap == NVG_SQUARE)
-				dst = nvg__buttCapEnd(dst, p1, dx, dy, w, w-aa, aa, u0, u1);
+				dst = nvg__buttCapEnd(dst, p1, dx, dy, w, w-aa, aa, u0, u1, dist);
 			else if (lineCap == NVG_ROUND)
 				dst = nvg__roundCapEnd(dst, p1, dx, dy, w, ncap, aa, u0, u1);
 		}
