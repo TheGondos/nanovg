@@ -354,8 +354,8 @@ int fons__tt_buildGlyphBitmap(FONSttFontImpl *font, int glyph, float size, float
 
 	ftError = FT_Set_Pixel_Sizes(font->font, 0, size);
 	if (ftError) return 0;
-	ftError = FT_Load_Glyph(font->font, glyph, FT_LOAD_RENDER | FT_LOAD_FORCE_AUTOHINT | FT_LOAD_TARGET_LIGHT);
-	if (ftError) return 0;
+	ftError = FT_Load_Glyph(font->font, glyph, FT_LOAD_RENDER | FT_LOAD_FORCE_AUTOHINT | FT_LOAD_MONOCHROME);
+	if (ftError) return 0; 
 	ftError = FT_Get_Advance(font->font, glyph, FT_LOAD_NO_SCALE, &advFixed);
 	if (ftError) return 0;
 	ftGlyph = font->font->glyph;
@@ -382,7 +382,7 @@ void fons__tt_renderGlyphBitmap(FONSttFontImpl *font, unsigned char *output, int
 
 	for ( y = 0; y < ftGlyph->bitmap.rows; y++ ) {
 		for ( x = 0; x < ftGlyph->bitmap.width; x++ ) {
-			output[(y * outStride) + x] = ftGlyph->bitmap.buffer[ftGlyphOffset++];
+			output[(y * outStride) + x] = (ftGlyph->bitmap.buffer[abs(ftGlyph->bitmap.pitch) * y + (x >> 3)] & (128 >> (x & 7))) != 0 ? 0xff : 0x00;
 		}
 	}
 }
