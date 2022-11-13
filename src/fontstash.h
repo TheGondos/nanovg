@@ -151,6 +151,7 @@ void fonsDrawDebug(FONScontext* s, float x, float y);
 #include FT_FREETYPE_H
 #include FT_ADVANCES_H
 #include <math.h>
+#include <freetype/tttables.h>
 
 struct FONSttFontImpl {
 	FT_Face font;
@@ -814,10 +815,30 @@ void fonsResetFallbackFont(FONScontext* stash, int base)
 	for (i = 0; i < FONS_HASH_LUT_SIZE; i++)
 		baseFont->lut[i] = -1;
 }
-
+#ifdef FONS_USE_FREETYPE
+static inline float height2em(FT_Face ft_face, float height)
+{
+    TT_OS2 *pOS2 = (TT_OS2 *)FT_Get_Sfnt_Table(ft_face, ft_sfnt_os2);
+    if(height > 0) {
+        if(pOS2->usWinAscent + pOS2->usWinDescent == 0) {
+			TT_HoriHeader *pHoriHeader = (TT_HoriHeader *)FT_Get_Sfnt_Table(ft_face, ft_sfnt_hhea);
+            return ft_face->units_per_EM * height / (pHoriHeader->Ascender - pHoriHeader->Descender);
+		} else
+            return ft_face->units_per_EM * height / (pOS2->usWinAscent + pOS2->usWinDescent);
+    } else {
+        return -height;
+    }
+}
+#endif
 void fonsSetSize(FONScontext* stash, float size)
 {
-	fons__getState(stash)->size = size;
+#ifdef FONS_USE_FREETYPE
+	FONSstate *state = fons__getState(stash);
+	FONSfont *font = stash->fonts[state->font];
+	state->size = height2em(font->font.font, size);
+#else
+	fons__getState(stash)->size = fabs(size);
+#endif
 }
 
 void fonsSetColor(FONScontext* stash, unsigned int color)
