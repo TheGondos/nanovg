@@ -547,17 +547,17 @@ void nvgStroke(NVGcontext* ctx);
 
 // Creates font by loading it from the disk from specified file name.
 // Returns handle to the font.
-int nvgCreateFont(NVGcontext* ctx, const char* name, const char* filename);
+int nvgCreateFont(NVGcontext* ctx, const char* name, const char* filename, int antialiased);
 
 // fontIndex specifies which font face to load from a .ttf/.ttc file.
-int nvgCreateFontAtIndex(NVGcontext* ctx, const char* name, const char* filename, const int fontIndex);
+int nvgCreateFontAtIndex(NVGcontext* ctx, const char* name, const char* filename, const int fontIndex, int antialiased);
 
 // Creates font by loading it from the specified memory chunk.
 // Returns handle to the font.
-int nvgCreateFontMem(NVGcontext* ctx, const char* name, unsigned char* data, int ndata, int freeData);
+int nvgCreateFontMem(NVGcontext* ctx, const char* name, unsigned char* data, int ndata, int freeData, int antialiased);
 
 // fontIndex specifies which font face to load from a .ttf/.ttc file.
-int nvgCreateFontMemAtIndex(NVGcontext* ctx, const char* name, unsigned char* data, int ndata, int freeData, const int fontIndex);
+int nvgCreateFontMemAtIndex(NVGcontext* ctx, const char* name, unsigned char* data, int ndata, int freeData, const int fontIndex, int antialiased);
 
 // Finds a loaded font of specified name, and returns handle to it, or -1 if the font is not found.
 int nvgFindFont(NVGcontext* ctx, const char* name);

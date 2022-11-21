@@ -2329,24 +2329,24 @@ void nvgStroke(NVGcontext* ctx)
 }
 
 // Add fonts
-int nvgCreateFont(NVGcontext* ctx, const char* name, const char* filename)
+int nvgCreateFont(NVGcontext* ctx, const char* name, const char* filename, int antialiased)
 {
-	return fonsAddFont(ctx->fs, name, filename, 0);
+	return fonsAddFont(ctx->fs, name, filename, 0, antialiased);
 }
 
-int nvgCreateFontAtIndex(NVGcontext* ctx, const char* name, const char* filename, const int fontIndex)
+int nvgCreateFontAtIndex(NVGcontext* ctx, const char* name, const char* filename, const int fontIndex, int antialiased)
 {
-	return fonsAddFont(ctx->fs, name, filename, fontIndex);
+	return fonsAddFont(ctx->fs, name, filename, fontIndex, antialiased);
 }
 
-int nvgCreateFontMem(NVGcontext* ctx, const char* name, unsigned char* data, int ndata, int freeData)
+int nvgCreateFontMem(NVGcontext* ctx, const char* name, unsigned char* data, int ndata, int freeData, int antialiased)
 {
-	return fonsAddFontMem(ctx->fs, name, data, ndata, freeData, 0);
+	return fonsAddFontMem(ctx->fs, name, data, ndata, freeData, 0, antialiased);
 }
 
-int nvgCreateFontMemAtIndex(NVGcontext* ctx, const char* name, unsigned char* data, int ndata, int freeData, const int fontIndex)
+int nvgCreateFontMemAtIndex(NVGcontext* ctx, const char* name, unsigned char* data, int ndata, int freeData, const int fontIndex, int antialiased)
 {
-	return fonsAddFontMem(ctx->fs, name, data, ndata, freeData, fontIndex);
+	return fonsAddFontMem(ctx->fs, name, data, ndata, freeData, fontIndex, antialiased);
 }
 
 int nvgFindFont(NVGcontext* ctx, const char* name)
