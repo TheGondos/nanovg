@@ -125,7 +125,7 @@ float fonsDrawText(FONScontext* s, float x, float y, const char* string, const c
 // Measure text
 float fonsTextBounds(FONScontext* s, float x, float y, const char* string, const char* end, float* bounds);
 void fonsLineBounds(FONScontext* s, float y, float* miny, float* maxy);
-void fonsVertMetrics(FONScontext* s, float* ascender, float* descender, float* lineh);
+void fonsVertMetrics(FONScontext* s, float* ascender, float* descender, float* lineh, float *acw);
 
 // Text iterator
 int fonsTextIterInit(FONScontext* stash, FONStextIter* iter, float x, float y, const char* str, const char* end, int bitmapOption);
@@ -242,6 +242,7 @@ struct FONSfont
 	float ascender;
 	float descender;
 	float lineh;
+	float xavgcharwidth;
 	FONSglyph* glyphs;
 	int cglyphs;
 	int nglyphs;
@@ -329,11 +330,18 @@ int fons__tt_loadFont(FONScontext *context, FONSttFontImpl *font, unsigned char 
 	return ftError == 0;
 }
 
-void fons__tt_getFontVMetrics(FONSttFontImpl *font, int *ascent, int *descent, int *lineGap)
+void fons__tt_getFontVMetrics(FONSttFontImpl *font, int *ascent, int *descent, int *lineGap, int *xAvgCharWidth)
 {
-	*ascent = font->font->ascender;
-	*descent = font->font->descender;
-	*lineGap = font->font->height - (*ascent - *descent);
+    TT_OS2 *pOS2 = (TT_OS2 *)FT_Get_Sfnt_Table(font->font, ft_sfnt_os2);
+	TT_HoriHeader *pHoriHeader = (TT_HoriHeader *)FT_Get_Sfnt_Table(font->font, ft_sfnt_hhea);
+
+//	*ascent = font->font->ascender;
+//	*descent = font->font->descender;
+//	*lineGap = font->font->height - (*ascent - *descent);
+	*ascent = pOS2->sTypoAscender;
+	*descent = pOS2->sTypoDescender;
+	*lineGap = pOS2->sTypoLineGap;
+	*xAvgCharWidth = pOS2->xAvgCharWidth;
 }
 
 float fons__tt_getPixelHeightScale(FONSttFontImpl *font, float size)
@@ -829,9 +837,13 @@ static inline float height2em(FT_Face ft_face, float height)
     if(height > 0) {
         if(pOS2->usWinAscent + pOS2->usWinDescent == 0) {
 			TT_HoriHeader *pHoriHeader = (TT_HoriHeader *)FT_Get_Sfnt_Table(ft_face, ft_sfnt_hhea);
-            return ft_face->units_per_EM * height / (pHoriHeader->Ascender - pHoriHeader->Descender);
-		} else
-            return ft_face->units_per_EM * height / (pOS2->usWinAscent + pOS2->usWinDescent);
+//			return FT_MulDiv(ft_face->units_per_EM, height, pHoriHeader->Ascender - pHoriHeader->Descender);
+			return (ft_face->units_per_EM* height) / (pHoriHeader->Ascender - pHoriHeader->Descender);
+
+		} else {
+//			return FT_MulDiv(ft_face->units_per_EM, height, pOS2->usWinAscent + pOS2->usWinDescent);
+			return (ft_face->units_per_EM* height)/ (pOS2->usWinAscent + pOS2->usWinDescent);
+		}
     } else {
         return -height;
     }
@@ -968,10 +980,10 @@ error:
 	if (fp) fclose(fp);
 	return FONS_INVALID;
 }
-
+#include <assert.h>
 int fonsAddFontMem(FONScontext* stash, const char* name, unsigned char* data, int dataSize, int freeData, int fontIndex, int antialiased)
 {
-	int i, ascent, descent, fh, lineGap;
+	int i, ascent, descent, fh, lineGap, xAvgCharWidth;
 	FONSfont* font;
 
 	int idx = fons__allocFont(stash);
@@ -998,12 +1010,15 @@ int fonsAddFontMem(FONScontext* stash, const char* name, unsigned char* data, in
 
 	// Store normalized line height. The real line height is got
 	// by multiplying the lineh by font size.
-	fons__tt_getFontVMetrics( &font->font, &ascent, &descent, &lineGap);
-	ascent += lineGap;
-	fh = ascent - descent;
+	fons__tt_getFontVMetrics( &font->font, &ascent, &descent, &lineGap, &xAvgCharWidth);
+//	ascent += lineGap;
+//	fh = ascent - descent;
+
+	fh = ascent - descent;// + lineGap;
 	font->ascender = (float)ascent / (float)fh;
 	font->descender = (float)descent / (float)fh;
-	font->lineh = font->ascender - font->descender;
+	font->lineh = (float)(ascent - descent + lineGap) / (float)fh;
+	font->xavgcharwidth = (float)xAvgCharWidth / (float)fh;
 	font->antialiased = antialiased;
 
 	return idx;
@@ -1326,13 +1341,13 @@ static float fons__getVertAlign(FONScontext* stash, FONSfont* font, int align, s
 {
 	if (stash->params.flags & FONS_ZERO_TOPLEFT) {
 		if (align & FONS_ALIGN_TOP) {
-			return font->ascender * (float)isize/10.0f;
+			return (font->ascender + (font->lineh - font->ascender + font->descender)/2.0) * (float)isize/10.0f+2;
 		} else if (align & FONS_ALIGN_MIDDLE) {
 			return (font->ascender + font->descender) / 2.0f * (float)isize/10.0f;
 		} else if (align & FONS_ALIGN_BASELINE) {
 			return 0.0f;
 		} else if (align & FONS_ALIGN_BOTTOM) {
-			return font->descender * (float)isize/10.0f;
+			return (font->descender - (font->lineh - font->ascender + font->descender)/2.0) * (float)isize/10.0f;
 		}
 	} else {
 		if (align & FONS_ALIGN_TOP) {
@@ -1612,7 +1627,7 @@ float fonsTextBounds(FONScontext* stash,
 }
 
 void fonsVertMetrics(FONScontext* stash,
-					 float* ascender, float* descender, float* lineh)
+					 float* ascender, float* descender, float* lineh, float *xAvgCharWidth)
 {
 	FONSfont* font;
 	FONSstate* state = fons__getState(stash);
@@ -1630,6 +1645,8 @@ void fonsVertMetrics(FONScontext* stash,
 		*descender = font->descender*isize/10.0f;
 	if (lineh)
 		*lineh = font->lineh*isize/10.0f;
+	if (xAvgCharWidth)
+		*xAvgCharWidth = font->xavgcharwidth*isize/10.0f;
 }
 
 void fonsLineBounds(FONScontext* stash, float y, float* miny, float* maxy)

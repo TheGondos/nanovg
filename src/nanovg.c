@@ -2583,7 +2583,7 @@ void nvgTextBox(NVGcontext* ctx, float x, float y, float breakRowWidth, const ch
 
 	if (state->fontId == FONS_INVALID) return;
 
-	nvgTextMetrics(ctx, NULL, NULL, &lineh);
+	nvgTextMetrics(ctx, NULL, NULL, &lineh, NULL);
 
 	state->textAlign = NVG_ALIGN_LEFT | valign;
 
@@ -2906,7 +2906,7 @@ void nvgTextBoxBounds(NVGcontext* ctx, float x, float y, float breakRowWidth, co
 		return;
 	}
 
-	nvgTextMetrics(ctx, NULL, NULL, &lineh);
+	nvgTextMetrics(ctx, NULL, NULL, &lineh, NULL);
 
 	state->textAlign = NVG_ALIGN_LEFT | valign;
 
@@ -2956,7 +2956,7 @@ void nvgTextBoxBounds(NVGcontext* ctx, float x, float y, float breakRowWidth, co
 	}
 }
 
-void nvgTextMetrics(NVGcontext* ctx, float* ascender, float* descender, float* lineh)
+void nvgTextMetrics(NVGcontext* ctx, float* ascender, float* descender, float* lineh, float *acw)
 {
 	NVGstate* state = nvg__getState(ctx);
 	float scale = nvg__getFontScale(state) * ctx->devicePxRatio;
@@ -2970,12 +2970,15 @@ void nvgTextMetrics(NVGcontext* ctx, float* ascender, float* descender, float* l
 	fonsSetAlign(ctx->fs, state->textAlign);
 	fonsSetFont(ctx->fs, state->fontId);
 
-	fonsVertMetrics(ctx->fs, ascender, descender, lineh);
+	fonsVertMetrics(ctx->fs, ascender, descender, lineh, acw);
 	if (ascender != NULL)
 		*ascender *= invscale;
 	if (descender != NULL)
 		*descender *= invscale;
 	if (lineh != NULL)
 		*lineh *= invscale;
+	if (acw != NULL);
+		*acw *= invscale;
+
 }
 // vim: ft=c nu noet ts=4

@@ -620,7 +620,7 @@ int nvgTextGlyphPositions(NVGcontext* ctx, float x, float y, const char* string,
 
 // Returns the vertical metrics based on the current text style.
 // Measured values are returned in local coordinate space.
-void nvgTextMetrics(NVGcontext* ctx, float* ascender, float* descender, float* lineh);
+void nvgTextMetrics(NVGcontext* ctx, float* ascender, float* descender, float* lineh, float *acw);
 
 // Breaks the specified text into lines. If end is specified only the sub-string will be used.
 // White space is stripped at the beginning of the rows, the text is split at word boundaries or when new-line characters are encountered.
