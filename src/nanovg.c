@@ -2514,11 +2514,11 @@ float nvgText(NVGcontext* ctx, float x, float y, const char* string, const char*
 
 	if (state->fontId == FONS_INVALID) return x;
 
+	fonsSetFont(ctx->fs, state->fontId);
 	fonsSetSize(ctx->fs, state->fontSize*scale);
 	fonsSetSpacing(ctx->fs, state->letterSpacing*scale);
 	fonsSetBlur(ctx->fs, state->fontBlur*scale);
 	fonsSetAlign(ctx->fs, state->textAlign);
-	fonsSetFont(ctx->fs, state->fontId);
 
 	cverts = nvg__maxi(2, (int)(end - string)) * 6; // conservative estimate.
 	verts = nvg__allocTempVerts(ctx, cverts);
