@@ -335,13 +335,17 @@ void fons__tt_getFontVMetrics(FONSttFontImpl *font, int *ascent, int *descent, i
     TT_OS2 *pOS2 = (TT_OS2 *)FT_Get_Sfnt_Table(font->font, ft_sfnt_os2);
 	TT_HoriHeader *pHoriHeader = (TT_HoriHeader *)FT_Get_Sfnt_Table(font->font, ft_sfnt_hhea);
 
-//	*ascent = font->font->ascender;
-//	*descent = font->font->descender;
-//	*lineGap = font->font->height - (*ascent - *descent);
-	*ascent = pOS2->sTypoAscender;
-	*descent = pOS2->sTypoDescender;
-	*lineGap = pOS2->sTypoLineGap;
-	*xAvgCharWidth = pOS2->xAvgCharWidth;
+	if(pOS2) {
+		*ascent = pOS2->sTypoAscender;
+		*descent = pOS2->sTypoDescender;
+		*lineGap = pOS2->sTypoLineGap;
+		*xAvgCharWidth = pOS2->xAvgCharWidth;
+	} else {
+		*ascent = font->font->ascender;
+		*descent = font->font->descender;
+		*lineGap = font->font->height - (*ascent - *descent);
+		*xAvgCharWidth = abs(font->font->size);
+	}
 }
 
 float fons__tt_getPixelHeightScale(FONSttFontImpl *font, float size)
@@ -834,6 +838,9 @@ void fonsResetFallbackFont(FONScontext* stash, int base)
 static inline float height2em(FT_Face ft_face, float height)
 {
     TT_OS2 *pOS2 = (TT_OS2 *)FT_Get_Sfnt_Table(ft_face, ft_sfnt_os2);
+	if(!pOS2) {
+		return fabs(height);
+	}
     if(height > 0) {
         if(pOS2->usWinAscent + pOS2->usWinDescent == 0) {
 			TT_HoriHeader *pHoriHeader = (TT_HoriHeader *)FT_Get_Sfnt_Table(ft_face, ft_sfnt_hhea);
