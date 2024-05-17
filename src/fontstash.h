@@ -344,7 +344,7 @@ void fons__tt_getFontVMetrics(FONSttFontImpl *font, int *ascent, int *descent, i
 		*ascent = font->font->ascender;
 		*descent = font->font->descender;
 		*lineGap = font->font->height - (*ascent - *descent);
-		*xAvgCharWidth = abs(font->font->size);
+		*xAvgCharWidth = abs(font->font->size->metrics.max_advance); //AvgCharWidth not available
 	}
 }
 
